@@ -1,0 +1,4 @@
+module CSherpaOnnx {
+    header "CSherpaOnnx.h"
+    export *
+}
