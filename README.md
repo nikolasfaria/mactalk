@@ -76,4 +76,4 @@ Then bump `version` in `Casks/mactalk.rb` of the tap repo.
 
 ---
 
-Made by niko da toolzz.
+Made by Niko da Toolzz.

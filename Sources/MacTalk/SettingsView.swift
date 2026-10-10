@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 enum SettingsTab {
-    case voice
+    case voice, about
 }
 
 struct SettingsView: View {
@@ -67,6 +67,7 @@ struct SettingsView: View {
                 .padding(.bottom, 6)
 
             sidebarItem(.voice, icon: "mic.fill", title: "Voice")
+            sidebarItem(.about, icon: "info.circle", title: "About")
 
             Spacer()
         }
@@ -76,8 +77,13 @@ struct SettingsView: View {
 
     // MARK: Content
 
+    @ViewBuilder
     private var content: some View {
-        voiceContent
+        switch selectedTab {
+        case .voice: voiceContent
+        case .about:
+            ScrollView { AboutView() }
+        }
     }
 
     private func sidebarItem(_ tab: SettingsTab, icon: String, title: LocalizedStringKey) -> some View {
