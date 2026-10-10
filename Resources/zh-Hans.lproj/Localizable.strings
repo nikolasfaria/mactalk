@@ -52,3 +52,6 @@
 "Allow accessibility" = "允许辅助功能";
 "Start using MacTalk" = "开始使用 MacTalk";
 "Shortcut: %@ to start, %@ again to stop." = "快捷键：%@ 开始，再按 %@ 停止。";
+"Open at login" = "登录时打开";
+"Start MacTalk automatically when you log in to your Mac." = "登录 Mac 时自动启动 MacTalk。";
+"About" = "关于";

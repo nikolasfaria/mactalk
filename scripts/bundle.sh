@@ -18,6 +18,7 @@ cp "$BIN" "$APP/Contents/MacOS/MacTalk"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/"
 cp -R Resources/*.lproj "$APP/Contents/Resources/"
+cp Resources/MenuBarIcon*.png "$APP/Contents/Resources/"
 cp Vendor/sherpa-onnx/lib/*.dylib "$APP/Contents/Frameworks/"
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/" || echo "note: no Resources/AppIcon.icns yet"
 

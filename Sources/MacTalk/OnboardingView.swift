@@ -31,7 +31,10 @@ struct OnboardingView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Button("Retry download") { downloader.download() }
+                    HStack(spacing: 10) {
+                        Button("Use existing model…") { downloader.importExisting() }
+                        Button("Download") { downloader.download() }
+                    }
                 }
             }
 

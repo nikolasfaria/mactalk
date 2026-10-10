@@ -24,11 +24,14 @@ tell application "Finder"
     open
     set current view of container window to icon view
     set toolbar visible of container window to false
-    set bounds of container window to {200, 120, 740, 480}
-    set arrangement of icon view options of container window to not arranged
-    set icon size of icon view options of container window to 96
-    set position of item "MacTalk.app" of container window to {140, 170}
-    set position of item "Applications" of container window to {400, 170}
+    set statusbar visible of container window to false
+    set bounds of container window to {200, 120, 740, 508}
+    set theViewOptions to icon view options of container window
+    set arrangement of theViewOptions to not arranged
+    set icon size of theViewOptions to 112
+    set text size of theViewOptions to 13
+    set position of item "MacTalk.app" of container window to {140, 250}
+    set position of item "Applications" of container window to {400, 250}
     close
     open
     update without registering applications

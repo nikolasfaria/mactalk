@@ -1,13 +1,20 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
+enum SettingsTab {
+    case voice
+}
+
 struct SettingsView: View {
+    @State private var selectedTab: SettingsTab = .voice
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var downloader: ModelDownloader
     @StateObject private var recorder = ShortcutRecorder()
     @State private var inputs: [InputDevice] = []
     @State private var accessibilityTrusted = TextInserter.isAccessibilityTrusted
     @State private var modelInstalled = SpeechModel.isInstalled
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         HStack(spacing: 0) {
@@ -26,7 +33,17 @@ struct SettingsView: View {
         .onDisappear { recorder.stop() }
     }
 
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            NSLog("MacTalk: launch at login change failed: \(error.localizedDescription)")
+        }
+        launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
     private func refresh() {
+        launchAtLogin = SMAppService.mainApp.status == .enabled
         inputs = AudioDevices.inputs()
         accessibilityTrusted = TextInserter.isAccessibilityTrusted
         modelInstalled = SpeechModel.isInstalled
@@ -49,15 +66,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 14)
                 .padding(.bottom, 6)
 
-            HStack(spacing: 10) {
-                Image(systemName: "mic.fill").frame(width: 16)
-                Text("Voice").font(.system(size: 13))
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
-            .padding(.horizontal, 8)
+            sidebarItem(.voice, icon: "mic.fill", title: "Voice")
 
             Spacer()
         }
@@ -68,6 +77,28 @@ struct SettingsView: View {
     // MARK: Content
 
     private var content: some View {
+        voiceContent
+    }
+
+    private func sidebarItem(_ tab: SettingsTab, icon: String, title: LocalizedStringKey) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon).frame(width: 16)
+                Text(title).font(.system(size: 13))
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(selectedTab == tab ? 0.08 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+    }
+
+    private var voiceContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Voice")
@@ -82,6 +113,14 @@ struct SettingsView: View {
                     row(title: "Enable Voice Dictation",
                         subtitle: "Press \(settings.shortcut.display) to dictate text into any focused field.") {
                         Toggle("", isOn: $settings.dictationEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                    Divider().opacity(0.5)
+
+                    row(title: "Open at login",
+                        subtitle: "Start MacTalk automatically when you log in to your Mac.") {
+                        Toggle("", isOn: Binding(get: { launchAtLogin }, set: setLaunchAtLogin))
                             .toggleStyle(.switch)
                             .labelsHidden()
                     }
@@ -167,6 +206,7 @@ struct SettingsView: View {
                 Text(downloader.phase == .verifying ? "Verifying…" : "\(Int(downloader.progress * 100))%")
                     .font(.system(size: 12).monospacedDigit())
                     .foregroundStyle(.secondary)
+                Button("Cancel") { downloader.cancel() }
             }
         } else if modelInstalled {
             HStack(spacing: 12) {
@@ -179,8 +219,13 @@ struct SettingsView: View {
                 }
             }
         } else {
-            Button("Download (≈640 MB)") {
-                downloader.download()
+            HStack(spacing: 12) {
+                Button("Use existing model…") {
+                    downloader.importExisting()
+                }
+                Button("Download (≈640 MB)") {
+                    downloader.download()
+                }
             }
         }
     }

@@ -52,3 +52,6 @@
 "Allow accessibility" = "アクセシビリティを許可";
 "Start using MacTalk" = "MacTalk を使い始める";
 "Shortcut: %@ to start, %@ again to stop." = "ショートカット: %@ で開始、もう一度 %@ で停止。";
+"Open at login" = "ログイン時に開く";
+"Start MacTalk automatically when you log in to your Mac." = "Mac にログインすると MacTalk を自動的に起動します。";
+"About" = "情報";

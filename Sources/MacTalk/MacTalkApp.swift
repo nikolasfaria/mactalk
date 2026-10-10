@@ -20,9 +20,18 @@ struct MacTalkApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var app = AppModel.shared
 
+    /// The Thinking Orb as a template image, so macOS tints it for light and dark menu bars.
+    private static let menuBarIcon: NSImage = {
+        let image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "MacTalk")!
+        image.isTemplate = true
+        return image
+    }()
+
     var body: some Scene {
-        MenuBarExtra("MacTalk", systemImage: "mic.fill") {
+        MenuBarExtra {
             MenuContent(settings: app.settings)
+        } label: {
+            Image(nsImage: Self.menuBarIcon)
         }
         .menuBarExtraStyle(.menu)
 

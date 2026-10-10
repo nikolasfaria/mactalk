@@ -1,3 +1,4 @@
+import AppKit
 import CryptoKit
 import Foundation
 
@@ -15,6 +16,8 @@ enum SpeechModel {
 
     private static let repo = "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
     private static let revision = "2bda32ec70b097a55adaa07d9a7173915b43cc78"
+    private static let bookmarkKey = "speechModelBookmark"
+    static let folderName = "parakeet-tdt-0.6b-v3-int8"
 
     static let files: [File] = [
         File(name: "encoder.int8.onnx", size: 652_184_281,
@@ -27,21 +30,77 @@ enum SpeechModel {
              sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"),
     ]
 
+    /// Where the app downloads the model to.
     static var directory: URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return support.appendingPathComponent("MacTalk/models/parakeet-tdt-0.6b-v3-int8", isDirectory: true)
+        return support.appendingPathComponent("MacTalk/models/\(folderName)", isDirectory: true)
+    }
+
+    /// A folder the user pointed us to (for example an existing Orca install), if any.
+    static var importedDirectory: URL? {
+        guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: data, options: [.withSecurityScope],
+                                 relativeTo: nil, bookmarkDataIsStale: &stale) else { return nil }
+        _ = url.startAccessingSecurityScopedResource()
+        return url
+    }
+
+    /// The folder the recognizer loads from: the imported one if present, otherwise the download folder.
+    static var activeDirectory: URL {
+        if let imported = importedDirectory, isComplete(at: imported) { return imported }
+        return directory
+    }
+
+    static var isInstalled: Bool {
+        isComplete(at: activeDirectory)
     }
 
     static func url(for file: File) -> URL {
         URL(string: "https://huggingface.co/\(repo)/resolve/\(revision)/\(file.name)?download=true")!
     }
 
-    static var isInstalled: Bool {
-        files.allSatisfy { FileManager.default.fileExists(atPath: directory.appendingPathComponent($0.name).path) }
+    static func isComplete(at folder: URL) -> Bool {
+        files.allSatisfy { FileManager.default.fileExists(atPath: folder.appendingPathComponent($0.name).path) }
     }
 
+    /// Removes the downloaded copy and forgets any imported folder.
     static func remove() throws {
-        try FileManager.default.removeItem(at: directory)
+        UserDefaults.standard.removeObject(forKey: bookmarkKey)
+        if FileManager.default.fileExists(atPath: directory.path) {
+            try FileManager.default.removeItem(at: directory)
+        }
+    }
+
+    enum ImportError: LocalizedError {
+        case incomplete
+        case checksumMismatch(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .incomplete:
+                return String(localized: "This folder doesn't contain the complete Parakeet model.")
+            case .checksumMismatch(let name):
+                return String(localized: "Checksum mismatch for \(name). The file was discarded.")
+            }
+        }
+    }
+
+    /// Checks the chosen folder against the known checksums, then remembers it. Nothing is copied or downloaded again.
+    static func importModel(from source: URL) async throws {
+        let accessed = source.startAccessingSecurityScopedResource()
+        defer { if accessed { source.stopAccessingSecurityScopedResource() } }
+
+        guard isComplete(at: source) else { throw ImportError.incomplete }
+        try await Task.detached(priority: .utility) {
+            for file in files {
+                let digest = try sha256(of: source.appendingPathComponent(file.name))
+                guard digest == file.sha256 else { throw ImportError.checksumMismatch(file.name) }
+            }
+        }.value
+
+        let bookmark = try source.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+        UserDefaults.standard.set(bookmark, forKey: bookmarkKey)
     }
 
     static func sha256(of url: URL) throws -> String {
@@ -69,6 +128,9 @@ final class ModelDownloader: ObservableObject {
     /// Overall progress across all files, 0...1.
     @Published private(set) var progress: Double = 0
 
+    private var currentTask: URLSessionDownloadTask?
+    private var cancelled = false
+
     var isBusy: Bool {
         phase == .downloading || phase == .verifying
     }
@@ -77,9 +139,41 @@ final class ModelDownloader: ObservableObject {
         guard !isBusy else { return }
         phase = .downloading
         progress = 0
+        cancelled = false
         Task {
             do {
                 try await fetchAll()
+                phase = .idle
+            } catch {
+                if cancelled {
+                    phase = .idle
+                } else {
+                    phase = .failed(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    func cancel() {
+        cancelled = true
+        currentTask?.cancel()
+    }
+
+    /// Lets the user point MacTalk at an existing copy of the model (for example the one Orca downloaded).
+    func importExisting() {
+        guard !isBusy else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = String(localized: "Use this folder")
+        panel.message = String(localized: "Choose the folder that contains the Parakeet model files (\(SpeechModel.folderName)).")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        phase = .verifying
+        Task {
+            do {
+                try await SpeechModel.importModel(from: url)
                 phase = .idle
             } catch {
                 phase = .failed(error.localizedDescription)
@@ -145,6 +239,7 @@ final class ModelDownloader: ObservableObject {
             observer.value = task.progress.observe(\.fractionCompleted) { progress, _ in
                 onProgress(progress.fractionCompleted)
             }
+            currentTask = task
             task.resume()
         }
     }

@@ -52,3 +52,6 @@
 "Allow accessibility" = "Permitir acessibilidade";
 "Start using MacTalk" = "Começar a usar o MacTalk";
 "Shortcut: %@ to start, %@ again to stop." = "Atalho: %@ para começar, %@ de novo para parar.";
+"Open at login" = "Abrir ao iniciar sessão";
+"Start MacTalk automatically when you log in to your Mac." = "Iniciar o MacTalk automaticamente quando você entrar no seu Mac.";
+"About" = "Sobre";

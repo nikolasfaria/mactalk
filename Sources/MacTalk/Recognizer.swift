@@ -27,7 +27,7 @@ final class Recognizer: @unchecked Sendable {
 
     private func loadIfNeeded() {
         guard recognizer == nil, SpeechModel.isInstalled else { return }
-        let dir = SpeechModel.directory.path
+        let dir = SpeechModel.activeDirectory.path
         let transducer = sherpaOnnxOfflineTransducerModelConfig(
             encoder: "\(dir)/encoder.int8.onnx",
             decoder: "\(dir)/decoder.int8.onnx",

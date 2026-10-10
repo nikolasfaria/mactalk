@@ -11,9 +11,13 @@ enum TextInserter {
         AXIsProcessTrusted()
     }
 
+    /// macOS only shows its prompt once per app, so also open the Accessibility pane where the user can enable MacTalk.
     static func requestAccessibility() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// Returns false when the text was only copied (auto-paste off, or no Accessibility permission).
