@@ -229,9 +229,11 @@ struct SettingsView: View {
                 Button("Use existing model…") {
                     downloader.importExisting()
                 }
+                .fixedSize()
                 Button("Download (≈640 MB)") {
                     downloader.download()
                 }
+                .fixedSize()
             }
         }
     }
