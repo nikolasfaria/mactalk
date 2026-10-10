@@ -2,3 +2,13 @@
 .swiftpm/
 build/
 .DS_Store
+
+# Signing material and credentials: never commit
+*.p12
+*.pem
+*.key
+*.cer
+*.csr
+*.mobileprovision
+*.provisionprofile
+.env
