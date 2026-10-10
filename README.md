@@ -73,3 +73,7 @@ gh release create v0.1.0 build/MacTalk-0.1.0.dmg --title "MacTalk 0.1.0" --notes
 ```
 
 Then bump `version` in `Casks/mactalk.rb` of the tap repo.
+
+---
+
+Made by niko da toolzz.
