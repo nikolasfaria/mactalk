@@ -12,19 +12,23 @@ final class IslandModel: ObservableObject {
     }
 
     @Published var state: State = .hidden
+    /// Width of the camera housing on notched Macs; the island keeps clear of it. 0 when there is no notch.
+    @Published var notchWidth: CGFloat = 0
 }
 
-/// The top-center "island" pill. Floats above the menu bar and never takes focus.
+/// The island. On notched Macs it wraps the camera housing with a wing on each side, so nothing is drawn under the camera.
+/// Elsewhere it is a centred pill at the top of the screen. It floats above the menu bar and never takes focus.
 @MainActor
 final class IslandWindow {
-    private static let size = NSSize(width: 300, height: 36)
+    private static let wingWidth: CGFloat = 170
+    private static let pillSize = NSSize(width: 300, height: 36)
 
     private let model = IslandModel()
     private var hideWork: DispatchWorkItem?
 
     private lazy var panel: NSPanel = {
         let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: Self.size),
+            contentRect: NSRect(origin: .zero, size: Self.pillSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -67,10 +71,24 @@ final class IslandWindow {
 
     private func position() {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
-        // Top-aligned with the screen so it reads as part of the notch / menu bar.
-        let origin = NSPoint(x: screen.frame.midX - Self.size.width / 2,
-                             y: screen.frame.maxY - Self.size.height)
-        panel.setFrame(NSRect(origin: origin, size: Self.size), display: true)
+        let geometry = Self.geometry(for: screen)
+        model.notchWidth = geometry.notchWidth
+        panel.setFrame(geometry.frame, display: true)
+    }
+
+    /// Notched screen: a strip the height of the menu bar, spanning the notch plus a wing on each side.
+    /// Other screens: a centred pill at the top edge.
+    private static func geometry(for screen: NSScreen) -> (frame: NSRect, notchWidth: CGFloat) {
+        let inset = screen.safeAreaInsets.top
+        if inset > 0, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+            let notchWidth = max(0, screen.frame.width - left.width - right.width)
+            let width = notchWidth + 2 * wingWidth
+            let frame = NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - inset, width: width, height: inset)
+            return (frame, notchWidth)
+        }
+        let frame = NSRect(x: screen.frame.midX - pillSize.width / 2, y: screen.frame.maxY - pillSize.height,
+                           width: pillSize.width, height: pillSize.height)
+        return (frame, 0)
     }
 }
 
@@ -78,28 +96,49 @@ private struct IslandView: View {
     @ObservedObject var model: IslandModel
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
+            leftWing
+            Color.clear.frame(width: model.notchWidth)
+            rightWing
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            UnevenRoundedRectangle(bottomLeadingRadius: 16, bottomTrailingRadius: 16)
+                .fill(.black)
+        )
+        .opacity(model.state == .hidden ? 0 : 1)
+        .scaleEffect(model.state == .hidden ? 0.9 : 1, anchor: .top)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.state)
+    }
+
+    /// Orb sits right next to the notch on notched Macs, and at the centre of a pill otherwise.
+    private var leftWing: some View {
+        HStack {
+            Spacer(minLength: 0)
             if let orb {
                 ThinkingOrb(state: orb, size: .px20, theme: .dark)
             }
+        }
+        .padding(.trailing, 12)
+        .frame(width: wing)
+    }
+
+    private var rightWing: some View {
+        HStack {
             if let label {
                 Text(label)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
             }
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 36)
-        .background(
-            UnevenRoundedRectangle(bottomLeadingRadius: 18, bottomTrailingRadius: 18)
-                .fill(.black)
-        )
-        .opacity(model.state == .hidden ? 0 : 1)
-        .scaleEffect(model.state == .hidden ? 0.9 : 1, anchor: .top)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.state)
+        .padding(.leading, 12)
+        .frame(width: wing)
     }
+
+    /// Wing width; the notched layout uses the same wing as the pill's halves.
+    private var wing: CGFloat { 170 }
 
     private var orb: OrbState? {
         switch model.state {
